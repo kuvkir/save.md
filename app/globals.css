@@ -11,3 +11,52 @@ body {
 :root {
   color-scheme: light dark;
 }
+
+/* Prism syntax highlighting - Light mode */
+.token.title { color: #1a1a1a; font-weight: bold; }
+.token.bold { font-weight: bold; }
+.token.italic { font-style: italic; }
+.token.url { color: #0969da; }
+.token.code { color: #cf222e; background: #f6f8fa; padding: 0.1em 0.3em; border-radius: 3px; }
+.token.list { color: #0550ae; }
+.token.hr { color: #8c959f; }
+.token.blockquote { color: #57606a; font-style: italic; }
+.token.punctuation { color: #57606a; }
+.token.strike { text-decoration: line-through; }
+
+/* Prism syntax highlighting - Dark mode */
+@media (prefers-color-scheme: dark) {
+  .token.title { color: #f0f0f0; }
+  .token.url { color: #58a6ff; }
+  .token.code { color: #ff7b72; background: #343942; }
+  .token.list { color: #79c0ff; }
+  .token.hr { color: #6e7681; }
+  .token.blockquote { color: #8b949e; }
+  .token.punctuation { color: #8b949e; }
+}
+
+/* Editor text color */
+.npm__react-simple-code-editor__textarea,
+.npm__react-simple-code-editor__textarea::placeholder {
+  color: inherit !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .npm__react-simple-code-editor__textarea,
+  pre {
+    color: #e6edf3 !important;
+  }
+  .npm__react-simple-code-editor__textarea::placeholder {
+    color: #6e7681 !important;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .npm__react-simple-code-editor__textarea,
+  pre {
+    color: #1f2328 !important;
+  }
+  .npm__react-simple-code-editor__textarea::placeholder {
+    color: #8c959f !important;
+  }
+}

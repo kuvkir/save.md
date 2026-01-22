@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TabBar } from '@/components/TabBar'
-import { Editor } from '@/components/Editor'
+import { MarkdownEditor } from '@/components/Editor'
 import { Tab } from '@/lib/types'
 
 const STORAGE_KEY = 'markdown-tabs'
@@ -146,7 +146,7 @@ export default function Home() {
         onRenameTab={handleRenameTab}
       />
       {activeTab && (
-        <Editor
+        <MarkdownEditor
           content={activeTab.content}
           onChange={handleContentChange}
         />
