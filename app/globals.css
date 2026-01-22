@@ -24,6 +24,18 @@ body {
 .token.punctuation { color: #57606a; }
 .token.strike { text-decoration: line-through; }
 
+/* Code language tokens - Light mode */
+.token.keyword { color: #cf222e; }
+.token.string { color: #0a3069; }
+.token.function { color: #8250df; }
+.token.number { color: #0550ae; }
+.token.operator { color: #cf222e; }
+.token.class-name { color: #953800; }
+.token.comment { color: #6e7781; font-style: italic; }
+.token.builtin { color: #0550ae; }
+.token.property { color: #0550ae; }
+.token.boolean { color: #0550ae; }
+
 /* Prism syntax highlighting - Dark mode */
 @media (prefers-color-scheme: dark) {
   .token.title { color: #f0f0f0; }
@@ -33,6 +45,18 @@ body {
   .token.hr { color: #6e7681; }
   .token.blockquote { color: #8b949e; }
   .token.punctuation { color: #8b949e; }
+
+  /* Code language tokens - Dark mode */
+  .token.keyword { color: #ff7b72; }
+  .token.string { color: #a5d6ff; }
+  .token.function { color: #d2a8ff; }
+  .token.number { color: #79c0ff; }
+  .token.operator { color: #ff7b72; }
+  .token.class-name { color: #ffa657; }
+  .token.comment { color: #8b949e; }
+  .token.builtin { color: #79c0ff; }
+  .token.property { color: #79c0ff; }
+  .token.boolean { color: #79c0ff; }
 }
 
 /* Editor text color */
