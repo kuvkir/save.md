@@ -77,6 +77,56 @@ export function MarkdownEditor({ content, onChange }: EditorProps) {
     return highlightWithCodeBlocks(code)
   }, [])
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.metaKey) {
+      const textarea = e.currentTarget
+      const { selectionStart, selectionEnd } = textarea
+
+      let wrapper: string | null = null
+      if (e.key === 'b') {
+        wrapper = '**'
+      } else if (e.key === 'i') {
+        wrapper = '*'
+      }
+
+      if (wrapper) {
+        e.preventDefault()
+        const len = wrapper.length
+        const selectedText = content.slice(selectionStart, selectionEnd)
+
+        // Check if selection starts and ends with wrapper (selection includes wrappers)
+        const startsWithWrapper = selectedText.startsWith(wrapper)
+        const endsWithWrapper = selectedText.endsWith(wrapper)
+
+        let newText: string
+        let newSelectionStart: number
+        let newSelectionEnd: number
+
+        if (startsWithWrapper && endsWithWrapper && selectedText.length >= len * 2) {
+          // Unwrap: remove wrappers from inside selection
+          newText = selectedText.slice(len, -len)
+          newSelectionStart = selectionStart
+          newSelectionEnd = selectionStart + newText.length
+        } else {
+          // Wrap the selection
+          newText = `${wrapper}${selectedText}${wrapper}`
+          newSelectionStart = selectionStart
+          newSelectionEnd = selectionStart + newText.length
+        }
+
+        // Use execCommand to integrate with browser's undo stack
+        textarea.focus()
+        document.execCommand('insertText', false, newText)
+
+        requestAnimationFrame(() => {
+          textarea.selectionStart = newSelectionStart
+          textarea.selectionEnd = newSelectionEnd
+          textarea.focus()
+        })
+      }
+    }
+  }, [content])
+
   return (
     <div className="flex-1 overflow-auto bg-white dark:bg-neutral-900">
       <Editor
@@ -87,6 +137,8 @@ export function MarkdownEditor({ content, onChange }: EditorProps) {
         placeholder="Start writing markdown..."
         className="min-h-full font-mono text-sm leading-relaxed"
         textareaClassName="outline-none"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onKeyDown={handleKeyDown as any}
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           minHeight: '100%',
