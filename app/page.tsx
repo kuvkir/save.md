@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TabBar } from '@/components/TabBar'
 import { MarkdownEditor } from '@/components/Editor'
+import { MarkdownPreview } from '@/components/Preview'
 import { Tab } from '@/lib/types'
 
 const STORAGE_KEY = 'markdown-tabs'
@@ -35,7 +36,27 @@ export default function Home() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isPreview, setIsPreview] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Detect Mac for keyboard shortcuts
+  const isMacRef = useRef(false)
+  useEffect(() => {
+    isMacRef.current = navigator.platform.toUpperCase().includes('MAC')
+  }, [])
+
+  // Global keyboard shortcut for preview toggle: Cmd+Shift+P / Ctrl+Shift+P
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const modKey = isMacRef.current ? e.metaKey : e.ctrlKey
+      if (modKey && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        setIsPreview(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -158,10 +179,14 @@ export default function Home() {
         onRenameTab={handleRenameTab}
       />
       {activeTab && (
-        <MarkdownEditor
-          content={activeTab.content}
-          onChange={handleContentChange}
-        />
+        isPreview ? (
+          <MarkdownPreview content={activeTab.content} />
+        ) : (
+          <MarkdownEditor
+            content={activeTab.content}
+            onChange={handleContentChange}
+          />
+        )
       )}
     </main>
   )

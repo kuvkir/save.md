@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import Editor from 'react-simple-code-editor'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-markup-templating'
@@ -15,6 +15,15 @@ import 'prismjs/components/prism-markdown'
 interface EditorProps {
   content: string
   onChange: (content: string) => void
+}
+
+// Detect if running on Mac
+function useIsMac() {
+  const [isMac, setIsMac] = useState(false)
+  useEffect(() => {
+    setIsMac(navigator.platform.toUpperCase().includes('MAC'))
+  }, [])
+  return isMac
 }
 
 const LANG_ALIASES: Record<string, string> = {
@@ -73,59 +82,169 @@ function highlightWithCodeBlocks(code: string): string {
 }
 
 export function MarkdownEditor({ content, onChange }: EditorProps) {
+  const isMac = useIsMac()
+  // Track cursor position for undo/redo
+  const lastCursorRef = useRef({ start: 0, end: 0 })
+
   const highlight = useCallback((code: string) => {
     return highlightWithCodeBlocks(code)
   }, [])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.metaKey) {
-      const textarea = e.currentTarget
-      const { selectionStart, selectionEnd } = textarea
+    // Use metaKey on Mac, ctrlKey on Windows/Linux
+    const modKey = isMac ? e.metaKey : e.ctrlKey
+    if (!modKey) return
 
-      let wrapper: string | null = null
-      if (e.key === 'b') {
-        wrapper = '**'
-      } else if (e.key === 'i') {
-        wrapper = '*'
-      }
+    const textarea = e.currentTarget
+    const { selectionStart, selectionEnd } = textarea
 
-      if (wrapper) {
-        e.preventDefault()
-        const len = wrapper.length
-        const selectedText = content.slice(selectionStart, selectionEnd)
+    // Handle undo/redo - preserve cursor position
+    if (e.key === 'z') {
+      const cursorPos = { start: selectionStart, end: selectionEnd }
+      requestAnimationFrame(() => {
+        // Restore cursor to reasonable position after undo
+        const newLen = textarea.value.length
+        const safeStart = Math.min(cursorPos.start, newLen)
+        const safeEnd = Math.min(cursorPos.end, newLen)
+        textarea.selectionStart = safeStart
+        textarea.selectionEnd = safeEnd
+      })
+      return // Let the default undo happen
+    }
 
-        // Check if selection starts and ends with wrapper (selection includes wrappers)
-        const startsWithWrapper = selectedText.startsWith(wrapper)
-        const endsWithWrapper = selectedText.endsWith(wrapper)
+    // Helper to toggle wrap/unwrap for inline formatting
+    const toggleWrap = (wrapper: string) => {
+      e.preventDefault()
+      const len = wrapper.length
+      const selectedText = content.slice(selectionStart, selectionEnd)
+      const before = content.slice(selectionStart - len, selectionStart)
+      const after = content.slice(selectionEnd, selectionEnd + len)
+      const isWrapped = before === wrapper && after === wrapper
 
-        let newText: string
-        let newSelectionStart: number
-        let newSelectionEnd: number
-
-        if (startsWithWrapper && endsWithWrapper && selectedText.length >= len * 2) {
-          // Unwrap: remove wrappers from inside selection
-          newText = selectedText.slice(len, -len)
-          newSelectionStart = selectionStart
-          newSelectionEnd = selectionStart + newText.length
-        } else {
-          // Wrap the selection
-          newText = `${wrapper}${selectedText}${wrapper}`
-          newSelectionStart = selectionStart
-          newSelectionEnd = selectionStart + newText.length
-        }
-
-        // Use execCommand to integrate with browser's undo stack
-        textarea.focus()
-        document.execCommand('insertText', false, newText)
-
+      if (isWrapped) {
+        textarea.setSelectionRange(selectionStart - len, selectionEnd + len)
+        document.execCommand('insertText', false, selectedText)
         requestAnimationFrame(() => {
-          textarea.selectionStart = newSelectionStart
-          textarea.selectionEnd = newSelectionEnd
+          textarea.selectionStart = selectionStart - len
+          textarea.selectionEnd = selectionEnd - len
+          textarea.focus()
+        })
+      } else {
+        document.execCommand('insertText', false, `${wrapper}${selectedText}${wrapper}`)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = selectionStart + len
+          textarea.selectionEnd = selectionEnd + len
           textarea.focus()
         })
       }
     }
-  }, [content])
+
+    // Helper to toggle line prefix (for lists)
+    const toggleLinePrefix = (prefix: string) => {
+      e.preventDefault()
+      // Find the start of the current line
+      const lineStart = content.lastIndexOf('\n', selectionStart - 1) + 1
+      const lineEnd = content.indexOf('\n', selectionStart)
+      const actualLineEnd = lineEnd === -1 ? content.length : lineEnd
+      const line = content.slice(lineStart, actualLineEnd)
+
+      // Check if line already has this prefix
+      if (line.startsWith(prefix)) {
+        // Remove prefix
+        textarea.setSelectionRange(lineStart, lineStart + prefix.length)
+        document.execCommand('insertText', false, '')
+        requestAnimationFrame(() => {
+          textarea.selectionStart = selectionStart - prefix.length
+          textarea.selectionEnd = selectionEnd - prefix.length
+          textarea.focus()
+        })
+      } else {
+        // Add prefix at line start
+        textarea.setSelectionRange(lineStart, lineStart)
+        document.execCommand('insertText', false, prefix)
+        requestAnimationFrame(() => {
+          textarea.selectionStart = selectionStart + prefix.length
+          textarea.selectionEnd = selectionEnd + prefix.length
+          textarea.focus()
+        })
+      }
+    }
+
+    // Bold: Cmd+B / Ctrl+B
+    if (e.key === 'b' && !e.shiftKey) {
+      toggleWrap('**')
+      return
+    }
+
+    // Italic: Cmd+I / Ctrl+I
+    if (e.key === 'i' && !e.shiftKey) {
+      toggleWrap('*')
+      return
+    }
+
+    // Inline code: Cmd+E / Ctrl+E
+    if (e.key === 'e' && !e.shiftKey) {
+      toggleWrap('`')
+      return
+    }
+
+    // Link: Cmd+K / Ctrl+K
+    if (e.key === 'k' && !e.shiftKey) {
+      e.preventDefault()
+
+      let linkText: string
+      let replaceStart = selectionStart
+      let replaceEnd = selectionEnd
+
+      if (selectionStart === selectionEnd) {
+        // No selection - find word under cursor
+        const wordChars = /[a-zA-Z0-9_-]/
+        let wordStart = selectionStart
+        let wordEnd = selectionStart
+
+        // Find word start
+        while (wordStart > 0 && wordChars.test(content[wordStart - 1])) {
+          wordStart--
+        }
+        // Find word end
+        while (wordEnd < content.length && wordChars.test(content[wordEnd])) {
+          wordEnd++
+        }
+
+        linkText = content.slice(wordStart, wordEnd) || 'text'
+        replaceStart = wordStart
+        replaceEnd = wordEnd
+      } else {
+        linkText = content.slice(selectionStart, selectionEnd)
+      }
+
+      // Select the word/text to replace, then insert link
+      textarea.setSelectionRange(replaceStart, replaceEnd)
+      const newText = `[${linkText}](url)`
+      document.execCommand('insertText', false, newText)
+
+      // Select "url"
+      requestAnimationFrame(() => {
+        const urlStart = replaceStart + linkText.length + 3 // [text](
+        textarea.selectionStart = urlStart
+        textarea.selectionEnd = urlStart + 3 // "url"
+        textarea.focus()
+      })
+      return
+    }
+
+    // Ordered list: Cmd+Shift+7 / Ctrl+Shift+7
+    if (e.key === '7' && e.shiftKey) {
+      toggleLinePrefix('1. ')
+      return
+    }
+
+    // Unordered list: Cmd+Shift+8 / Ctrl+Shift+8
+    if (e.key === '8' && e.shiftKey) {
+      toggleLinePrefix('- ')
+      return
+    }
+  }, [content, isMac])
 
   return (
     <div className="flex-1 overflow-auto bg-white dark:bg-neutral-900">
