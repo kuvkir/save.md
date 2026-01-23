@@ -4,4 +4,5 @@ export interface Tab {
   content: string
   createdAt: number
   updatedAt: number
+  customTitle?: boolean
 }

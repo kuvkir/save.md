@@ -22,9 +22,8 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onNewTab, o
   }
 
   const handleTitleSubmit = (tabId: string) => {
-    if (editTitle.trim()) {
-      onRenameTab(tabId, editTitle.trim())
-    }
+    // Pass trimmed title (empty string resets to auto-extract)
+    onRenameTab(tabId, editTitle.trim())
     setEditingTabId(null)
   }
 

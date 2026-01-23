@@ -112,17 +112,29 @@ export default function Home() {
   }, [activeTabId])
 
   const handleRenameTab = useCallback((id: string, title: string) => {
-    setTabs(prev => prev.map(t =>
-      t.id === id ? { ...t, title, updatedAt: Date.now() } : t
-    ))
+    setTabs(prev => prev.map(t => {
+      if (t.id !== id) return t
+      if (title) {
+        // Custom title set
+        return { ...t, title, customTitle: true, updatedAt: Date.now() }
+      } else {
+        // Empty title - revert to auto-extract
+        const autoTitle = extractTitle(t.content)
+        return { ...t, title: autoTitle, customTitle: false, updatedAt: Date.now() }
+      }
+    }))
   }, [])
 
   const handleContentChange = useCallback((content: string) => {
     if (!activeTabId) return
-    const title = extractTitle(content)
-    setTabs(prev => prev.map(t =>
-      t.id === activeTabId ? { ...t, content, title, updatedAt: Date.now() } : t
-    ))
+    setTabs(prev => prev.map(t => {
+      if (t.id !== activeTabId) return t
+      const updates: Partial<Tab> = { content, updatedAt: Date.now() }
+      if (!t.customTitle) {
+        updates.title = extractTitle(content)
+      }
+      return { ...t, ...updates }
+    }))
   }, [activeTabId])
 
   const activeTab = tabs.find(t => t.id === activeTabId)
